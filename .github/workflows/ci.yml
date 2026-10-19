@@ -1,13 +1,16 @@
 name: CI
 
-# Every pull request and every push to development (integration) or main
-# (release). The same gates as `make check`,
-# plus known-vulnerable dependencies, secrets anywhere in history, and the
-# image build. A pull request is not reviewed until every job is green.
+# The same gates as `make ci`: lint, types, contract, tests against real
+# Postgres and Redis, migrations, known-vulnerable dependencies, secrets
+# anywhere in history, and the image build.
+#
+# Manual runs only for now; `make ci` runs these gates locally before every
+# push. To run on every pull request and push again, replace the trigger with:
+#   push:
+#     branches: [development, main]
+#   pull_request:
 on:
-  push:
-    branches: [main, development]
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read

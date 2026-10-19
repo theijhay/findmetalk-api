@@ -63,13 +63,19 @@ every pull request plain and professional:
   session, before you open the pull request, never on GitHub.
 - Nothing about accounts, billing, credentials or internal tooling.
 
-## Before every push: `make check`
+## Before every push: `make ci`
 
-`make up` starts local Postgres and Redis, then `make check` runs exactly what
-CI runs: ruff, mypy (strict), the contract check, all tests including
-integration tests, and the migration round trip. **If anything fails, do not
-push.** Fix it, or report the failure with the real output. `make down` when
-you are done: shut down every container you start.
+`make ci` runs every gate in `.github/workflows/ci.yml` on your machine:
+ruff, mypy (strict), the contract check, all tests including integration
+tests against real Postgres and Redis, the migration round trip, pip-audit,
+gitleaks over the full history, and the Docker image build. It starts the
+containers it needs and stops them again, pass or fail. **A pull request is
+only opened or pushed after `make ci` passes**, and the Testing section of
+the pull request says so. If anything fails, do not push: fix it, or report
+the failure to Isaac with the real output.
+
+While iterating, `make up` then `make check` is the quicker subset. `make
+down` when you are done: shut down every container you start.
 
 Never weaken a gate to get green: no `# type: ignore` or `# noqa` without a
 comment saying why, no skipped or deleted tests, no loosened CI.

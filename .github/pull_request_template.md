@@ -12,4 +12,4 @@
 
 ## Testing
 
-<!-- What was run (`make check`) and which tests cover the change. -->
+<!-- Confirm `make ci` passed, and name the tests that cover the change. -->
