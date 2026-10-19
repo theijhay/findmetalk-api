@@ -1,0 +1,22 @@
+# Weekly pull requests for outdated dependencies, the CI actions themselves
+# and the base image, into the integration branch. Security fixes also arrive
+# outside this schedule once Dependabot alerts are switched on in the
+# repository settings.
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    target-branch: development
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    target-branch: development
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    target-branch: development

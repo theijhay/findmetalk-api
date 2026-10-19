@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WebSocketEvents",
+  "x-event-schema-version": 1,
+  "$defs": {},
+  "properties": {
+    "server_to_client": {
+      "not": {}
+    },
+    "client_to_server": {
+      "not": {}
+    }
+  }
+}

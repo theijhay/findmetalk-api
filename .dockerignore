@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+.github
+
+# Docker
+Dockerfile
+.dockerignore
+compose.yaml
+docker/
+
+# Never in an image
+findmetalk-docs/
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Tooling and tests
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+tests/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
