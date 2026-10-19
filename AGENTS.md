@@ -127,8 +127,12 @@ built as specified, ask Isaac before changing the shape.
   (`2026-10-19T21:04:05Z`). **Durations** are integers with the unit in the
   name (`expires_in_seconds`).
 - **Auth**: `Authorization: Bearer <access_token>` on every route except the
-  sign-in routes and probes. The refresh token is only ever an `HttpOnly`,
-  `Secure`, `SameSite=Strict` cookie scoped to `/api/v1/auth`.
+  sign-in routes and probes. The API's callers are the web and admin
+  **servers** (their route handlers proxy every browser request), so sign-in
+  and refresh return both tokens in the response body to them; they keep the
+  tokens in `HttpOnly` cookies on their own origin, and browser JavaScript
+  never sees one. The browser opens the WebSocket with a short-lived,
+  single-use ticket, never the access token.
 - **Success bodies** are the resource itself, never wrapped. Every route
   declares a `response_model`.
 - **Status codes**: `200` read or update with a body, `201` created (body is
