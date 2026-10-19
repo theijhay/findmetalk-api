@@ -7,9 +7,8 @@ and `CLAUDE.md` point here; this file is the only copy of the rules.
 ## How work flows here
 
 - **Implementers** (Codex, Gemini) build features and open pull requests.
-- **The reviewer** (Claude) reviews every pull request. Review comments are
-  addressed in new commits on the same branch, and each one gets a reply on
-  its thread saying what changed, or why not.
+- **The reviewer** (Claude) reviews every pull request. Fixes for review
+  findings land as new commits on the same branch.
 - **Isaac** owns the product and is the only person who merges.
 
 ## Read the spec first
@@ -24,7 +23,7 @@ owner's machine only. Read it before any task, and follow section 0:
 - Every requirement has an ID (`FR-CALL-3`, `TR-3`, `SAFE-2`, `REC-4`).
   Name the IDs in branch names, commits, pull requests and test docstrings.
 - Safety (spec section 11) overrides convenience and speed. If a task
-  conflicts with section 11, flag it on the PR instead of building it.
+  conflicts with section 11, stop and tell Isaac instead of building it.
 - If the spec does not cover something, ask. Never guess.
 
 ## Private docs never reach GitHub
@@ -50,10 +49,19 @@ Do not `git add -f` it. Do not move the spec into the repository.
   `Co-Authored-By`, no "Generated with ...", no agent or model name, in
   commits, pull requests, comments or code. After opening a pull request,
   read its body back and remove any footer that appeared.
-- Fill in every section of the pull request template. "None" is an answer;
-  a deleted section is not.
-- Anything the reviewer or Isaac must know (a risk, a limit on what the tests
-  prove, a question) goes in the pull request, not only in your session.
+
+## Pull requests are public
+
+This repository is public and is read by people outside the project. Keep
+every pull request plain and professional:
+
+- The body follows the template and states **what was done**: summary,
+  changes, migration, testing. Straightforward, no padding.
+- **No questions, open items, notes to the owner, or TODO lists** in the
+  pull request body, and **no comments** on your own pull request.
+- Questions, risks and decisions that need Isaac go to him directly in your
+  session, before you open the pull request, never on GitHub.
+- Nothing about accounts, billing, credentials or internal tooling.
 
 ## Before every push: `make check`
 
@@ -98,8 +106,8 @@ The web and admin repos generate their types from `contract/openapi.json` and
 `contract/events.schema.json`. After changing a route, schema or WebSocket
 event, run `python -m api.contract.export` and commit the result. CI fails on
 drift. Every route declares `response_model`; WebSocket events are registered
-in `api/contract/events.py`. A breaking change is called out in the pull
-request's Contract section.
+in `api/contract/events.py`. A breaking change is listed under Changes in the pull
+request.
 
 ## Database and migrations
 
