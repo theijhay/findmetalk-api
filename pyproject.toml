@@ -1,0 +1,52 @@
+# Tool configuration only. Dependencies are pinned in requirements.txt
+# (runtime, what the image installs) and requirements-dev.txt (CI and local).
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+markers = [
+    "integration: needs real Postgres and Redis (TEST_DB_URL, TEST_REDIS_URL)",
+]
+addopts = "-p no:cacheprovider --strict-markers"
+filterwarnings = ["error"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 110
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F",  # pycodestyle, pyflakes
+    "I",            # import order
+    "B",            # bugbear
+    "UP",           # modern syntax for 3.12
+    "ASYNC",        # blocking calls inside async code
+    "S",            # bandit security checks
+    "TID",          # banned imports
+    "RUF",
+]
+ignore = [
+    "S101",    # assert is how pytest tests
+    "S104",    # binding 0.0.0.0 is intended inside the container
+    "RUF001",  # the ellipsis in redact() output is deliberate
+]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/env.py" = ["E402"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+# Absolute imports only, so tests/test_module_boundaries.py sees every import.
+ban-relative-imports = "all"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["api", "main.py", "tests", "alembic/env.py"]
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_decorators = false

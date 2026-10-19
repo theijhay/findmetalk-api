@@ -1,0 +1,66 @@
+name: findmetalk
+
+# Local development only. `make up` starts Postgres and Redis; `make down`
+# stops them. Shut down every container you start.
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: findmetalk
+      POSTGRES_PASSWORD: findmetalk
+      POSTGRES_DB: findmetalk
+    ports:
+      # Host ports are offset so this stack coexists with other local
+      # Postgres/Redis stacks (posgage uses 5433/6380). In-network services
+      # still use the standard ports.
+      - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Creates the separate findmetalk_test database the integration tests use.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U findmetalk -d findmetalk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    profiles: ["app"]
+    build: .
+    env_file: .env
+    environment:
+      # Override the localhost values in .env with in-network service names.
+      DB_URL: postgresql://findmetalk:findmetalk@postgres:5432/findmetalk
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2)",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  postgres_data:

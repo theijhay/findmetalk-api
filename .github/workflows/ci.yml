@@ -1,0 +1,136 @@
+name: CI
+
+# Every pull request and every push to development (integration) or main
+# (release). The same gates as `make check`,
+# plus known-vulnerable dependencies, secrets anywhere in history, and the
+# image build. A pull request is not reviewed until every job is green.
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12" # matches the Dockerfile
+
+jobs:
+  quality:
+    name: lint, types, contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # Never connected to: the contract export imports the app, and settings
+      # refuse to load without these.
+      DB_URL: postgresql://ci:ci@127.0.0.1:1/ci
+      REDIS_URL: redis://127.0.0.1:1/0
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      # The spec and planning notes are private and this repository is public.
+      - name: Private docs are not committed
+        run: |
+          if git ls-files | grep -iE '(^|/)findmetalk-docs/|_SPEC\.md$'; then
+            echo "::error::Private docs are tracked. Remove them with git rm --cached and keep them local."
+            exit 1
+          fi
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+      # TR-8: the committed OpenAPI and event schema match the code, so the
+      # web and admin repos never generate types from a stale contract.
+      - run: python -m api.contract.export --check
+
+  tests:
+    name: tests and migrations (Postgres 16, Redis 7)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: findmetalk
+          POSTGRES_PASSWORD: findmetalk
+          POSTGRES_DB: findmetalk_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U findmetalk -d findmetalk_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DB_URL: postgresql://findmetalk:findmetalk@localhost:5432/findmetalk_test
+      REDIS_URL: redis://localhost:6379/0
+      TEST_DB_URL: postgresql://findmetalk:findmetalk@localhost:5432/findmetalk_test
+      TEST_REDIS_URL: redis://localhost:6379/15
+      # Integration tests fail instead of skipping if the services are missing.
+      REQUIRE_INTEGRATION: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      # Migrations build what the models declare, and reverse cleanly.
+      - run: alembic upgrade head
+      - run: alembic check
+      - run: alembic downgrade base
+      - run: alembic upgrade head
+      - run: pytest -q
+
+  dependencies:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install pip-audit
+      # Fails on any known vulnerability. An exception is added only with
+      # `--ignore-vuln <ID>` and a comment saying why it cannot reach us,
+      # removed the moment that stops being true.
+      - run: pip-audit -r requirements.txt -r requirements-dev.txt --progress-spinner off
+
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the whole history, not just the last commit
+      # The gitleaks CLI image rather than gitleaks-action, which needs a paid
+      # licence for organisation repositories. Findings are redacted in logs.
+      - name: Scan for committed secrets
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.24.3 git /repo --redact --no-banner --exit-code 1
+
+  image:
+    name: docker image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build -t findmetalk-api:ci .
+      # The image starts as a non-root user and imports the app.
+      - name: Image runs as non-root and imports the app
+        run: |
+          docker run --rm -e DB_URL=postgresql://u:p@127.0.0.1:1/d -e REDIS_URL=redis://127.0.0.1:1/0 \
+            findmetalk-api:ci sh -c 'test "$(id -u)" != 0 && python -c "import main"'
