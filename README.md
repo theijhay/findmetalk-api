@@ -58,8 +58,9 @@ tests/                  unit tests; tests/integration/ needs real services
 ## Probes
 
 - `GET /health`: liveness. 200 whenever the process is serving.
-- `GET /ready`: readiness. 200 when Postgres and Redis answer, 503 with the
-  failed dependency named otherwise.
+- `GET /ready`: readiness. 200 when Postgres and Redis answer. Otherwise,
+  503 with the standard error body and code `service_unavailable`; the
+  failed dependency is named in the warning logs.
 
 Every response carries an `X-Request-ID`, which also appears on every log line
 for that request. Logs are JSON on stdout and carry no PII.
