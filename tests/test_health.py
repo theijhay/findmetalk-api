@@ -45,9 +45,10 @@ async def test_ready_when_every_dependency_answers(
     assert response.json() == {"status": "ready", "checks": {"database": "ok", "redis": "ok"}}
 
 
-async def test_not_ready_names_the_failed_dependency_without_its_error(
+async def test_not_ready_logs_the_failed_dependency_without_exposing_its_error(
     client: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
+    """TR-8: readiness logs identify the failed dependency without leaking credentials."""
     monkeypatch.setitem(health_module._CHECKS, "database", _down)
     monkeypatch.setitem(health_module._CHECKS, "redis", _ok)
 
@@ -56,9 +57,10 @@ async def test_not_ready_names_the_failed_dependency_without_its_error(
 
     assert response.status_code == 503
     assert response.json() == {
-        "status": "not_ready",
-        "checks": {"database": "unavailable", "redis": "ok"},
+        "error": {"code": "service_unavailable", "request_id": response.headers["x-request-id"]},
     }
+    (warning,) = [record for record in caplog.records if record.getMessage() == "readiness check failed"]
+    assert warning.__dict__["check"] == "database"
     # The connection error carried a credential; neither the body nor the
     # log may repeat it.
     assert "secret" not in response.text
@@ -80,7 +82,7 @@ async def test_a_hung_dependency_reports_unavailable_instead_of_hanging(
     response = await client.get("/ready")
 
     assert response.status_code == 503
-    assert response.json()["checks"]["redis"] == "unavailable"
+    assert response.json()["error"]["code"] == "service_unavailable"
 
 
 async def test_every_response_carries_a_generated_request_id(client: httpx.AsyncClient) -> None:
