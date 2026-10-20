@@ -10,11 +10,11 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from typing import Literal
 
-from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
 
+from api.core.errors import ErrorResponse
 from api.core.redis_client import redis_client
 from api.db.database import engine
 from api.utils.logger import logger
@@ -33,7 +33,7 @@ class HealthResponse(BaseModel):
 
 
 class ReadinessResponse(BaseModel):
-    status: Literal["ready", "not_ready"]
+    status: Literal["ready"]
     checks: dict[str, CheckState]
 
 
@@ -70,11 +70,12 @@ async def health_check() -> HealthResponse:
 @health.get(
     "/ready",
     response_model=ReadinessResponse,
-    responses={503: {"model": ReadinessResponse}},
+    responses={503: {"model": ErrorResponse}},
 )
-async def readiness_check() -> JSONResponse:
+async def readiness_check() -> ReadinessResponse:
     results = await asyncio.gather(*(_run(name, check) for name, check in _CHECKS.items()))
     checks: dict[str, CheckState] = dict(zip(_CHECKS, results, strict=True))
     ready = all(state == "ok" for state in checks.values())
-    body = ReadinessResponse(status="ready" if ready else "not_ready", checks=checks)
-    return JSONResponse(status_code=200 if ready else 503, content=body.model_dump())
+    if not ready:
+        raise HTTPException(status_code=503)
+    return ReadinessResponse(status="ready", checks=checks)

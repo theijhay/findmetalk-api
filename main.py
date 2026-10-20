@@ -3,9 +3,10 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+from api.core.cors import ErrorCORSMiddleware
+from api.core.errors import ErrorResponse, install_error_handlers
 from api.core.health import health
 from api.core.middleware import RequestContextMiddleware
 from api.core.redis_client import redis_client
@@ -17,7 +18,7 @@ from api.v1.routes import api_version_one
 # The published contract version (contract/openapi.json). Bumped by hand on a
 # breaking API change, never read from the environment, so every environment
 # serves the same contract.
-API_VERSION = "0.1.0"
+API_VERSION = "0.2.0"
 
 configure_logging(settings.LOG_LEVEL)
 
@@ -46,15 +47,20 @@ app = FastAPI(
     title=f"{settings.APP_NAME} API",
     version=API_VERSION,
     lifespan=lifespan,
+    responses={
+        "default": {"model": ErrorResponse, "description": "Error response"},
+        422: {"model": ErrorResponse, "description": "Validation error"},
+    },
     # The contract is published from the repository (contract/openapi.json),
     # so production does not also serve an interactive explorer.
     docs_url=None if settings.is_production else "/docs",
     redoc_url=None,
     openapi_url=None if settings.is_production else "/openapi.json",
 )
+install_error_handlers(app)
 
 app.add_middleware(
-    CORSMiddleware,
+    ErrorCORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
