@@ -9,7 +9,9 @@ and `CLAUDE.md` point here; this file is the only copy of the rules.
 - **Implementers** (Codex, Gemini) build features and open pull requests.
 - **The reviewer** (Claude) reviews every pull request. Fixes for review
   findings land as new commits on the same branch.
-- **Isaac** owns the product and is the only person who merges.
+- **The reviewer** also merges the pull requests it approves into
+  `development`.
+- **Isaac** owns the product and is the only person who merges into `main`.
 
 ## Read the spec first
 
@@ -40,7 +42,8 @@ Do not `git add -f` it. Do not move the spec into the repository.
   `<type>/<slice-or-id>-<short-name>`, e.g. `feat/fr-auth-1-email-otp`.
   Open the pull request into `development`.
 - **Never push to `development` or `main`. Never merge a pull request.**
-  Isaac merges.
+  The reviewer merges approved pull requests into `development`; Isaac
+  merges `development` into `main`.
 - Never reuse a branch that was already merged.
 - **One change per pull request**: one slice, or one part of one (spec 15).
   Never bundle auth, safety, recording or call-state changes with other work.
