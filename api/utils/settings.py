@@ -1,7 +1,44 @@
+from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, JsonValue
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Runtime values live in Postgres; these are the fallback values for missing
+# rows, not environment overrides. Keep the cache within the update window.
+CONFIG_CACHE_TTL_SECONDS = 30
+RUNTIME_CONFIG_DEFAULTS: Mapping[str, JsonValue] = MappingProxyType(
+    {
+        "calls.ring_timeout_seconds": 20,
+        "calls.recall_cooldown_seconds": 3600,
+        "calls.request_burst_per_hour": 30,
+        "calls.max_duration_seconds": 21600,
+        "calls.reconnect_window_seconds": 15,
+        "presence.heartbeat_ttl_seconds": 30,
+        "circles.max_size": 8,
+        "safety.autoflag_reporter_threshold": 3,
+        "safety.autoflag_window_hours": 24,
+        "recordings.retention_days": 14,
+        "recordings.enabled": {"default": {"call": True, "circle": True}, "countries": {}},
+        "consent.rules_version": "1",
+        "consent.recording_notice_version": "1",
+    }
+)
+RUNTIME_CONFIG_INTEGER_RANGES: Mapping[str, tuple[int, int]] = MappingProxyType(
+    {
+        "calls.ring_timeout_seconds": (5, 60),
+        "calls.recall_cooldown_seconds": (0, 604800),
+        "calls.request_burst_per_hour": (1, 1000),
+        "calls.max_duration_seconds": (600, 86400),
+        "calls.reconnect_window_seconds": (5, 120),
+        "presence.heartbeat_ttl_seconds": (10, 120),
+        "circles.max_size": (3, 50),
+        "safety.autoflag_reporter_threshold": (2, 50),
+        "safety.autoflag_window_hours": (1, 720),
+        "recordings.retention_days": (1, 365),
+    }
+)
 
 
 class Settings(BaseSettings):
