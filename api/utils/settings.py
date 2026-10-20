@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Every runtime setting, read from the environment (or `.env` locally).
+    """Environment settings, read from the environment (or `.env` locally).
 
     A new setting is added here, to `.env.example` with a comment saying what
     it gates, and to the deployment, in the same pull request.
