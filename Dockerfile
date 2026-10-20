@@ -9,7 +9,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# The wheel cache persists between builds, so a changed pin downloads only what
+# changed and an interrupted build keeps what it already fetched; the long
+# timeout and retries let a build finish on a slow line.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --timeout 120 --retries 10 -r requirements.txt
 
 COPY . .
 
