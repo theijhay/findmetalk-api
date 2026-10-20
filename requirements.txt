@@ -12,3 +12,7 @@ SQLAlchemy[asyncio]==2.0.31
 asyncpg==0.32.0
 alembic==1.20.0
 redis==8.1.0
+# Authenticated email encryption, access tokens and address normalization.
+cryptography==50.0.2
+PyJWT==2.15.1
+email-validator==2.3.0
