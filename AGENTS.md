@@ -115,6 +115,55 @@ drift. Every route declares `response_model`; WebSocket events are registered
 in `api/contract/events.py`. A breaking change is listed under Changes in the pull
 request.
 
+Each feature issue defines its endpoints, request and response bodies, status
+codes, error codes and events. Implement them as written. If one cannot be
+built as specified, ask Isaac before changing the shape.
+
+## API conventions
+
+- **Base path** `/api/v1`. JSON request and response bodies, `snake_case`
+  field names.
+- **Ids** are UUID strings. **Timestamps** are ISO 8601 in UTC
+  (`2026-10-19T21:04:05Z`). **Durations** are integers with the unit in the
+  name (`expires_in_seconds`).
+- **Auth**: `Authorization: Bearer <access_token>` on every route except the
+  sign-in routes and probes. The API's callers are the web and admin
+  **servers** (their route handlers proxy every browser request), so sign-in
+  and refresh return both tokens in the response body to them; they keep the
+  tokens in `HttpOnly` cookies on their own origin, and browser JavaScript
+  never sees one. The browser opens the WebSocket with a short-lived,
+  single-use ticket, never the access token.
+- **Success bodies** are the resource itself, never wrapped. Every route
+  declares a `response_model`.
+- **Status codes**: `200` read or update with a body, `201` created (body is
+  the new resource), `202` accepted for later processing, `204` success with
+  no body. `401` not signed in, `403` signed in but not allowed, `404` not
+  found or not visible to this user, `409` conflicts with current state,
+  `422` invalid input, `429` too many requests (with `Retry-After`).
+- **Errors** always have this shape. `code` is a stable, namespaced key the
+  apps translate (`auth.code_invalid`); it is never an English sentence.
+  ```json
+  {
+    "error": {
+      "code": "validation_failed",
+      "fields": [{ "field": "display_name", "code": "profile.display_name_length" }],
+      "request_id": "3f9c2a7e5b1d4c8e9a0b6d2f4e1c7a95"
+    }
+  }
+  ```
+  `fields` appears only on `422`.
+- **Lists** are cursor-paginated: query `?cursor=<opaque>&limit=<1..100>`
+  (default 50), response `{ "items": [...], "next_cursor": "..." | null }`.
+- **Never leak what the spec hides.** A skipped, expired or guarded call
+  request, a blocked user and a full circle all return the same neutral
+  response as "not available". Sign-in responses are identical whether or
+  not the email has an account.
+- **Actions** on a resource are `POST /resource/{id}/<verb>` and are
+  idempotent: repeating one that already happened returns the same result.
+- **WebSocket events** use the envelope
+  `{ "event": "<name>", "v": 1, "id": "<uuid, client events only>", "data": { ... } }`
+  and are registered in `api/contract/events.py`.
+
 ## Database and migrations
 
 - A schema change needs an Alembic revision in `alembic/versions/`, and new
