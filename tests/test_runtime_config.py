@@ -7,7 +7,13 @@ import pytest
 from pydantic import ValidationError
 
 from api.core.actor import SYSTEM, Actor
-from api.v1.schemas.admin.config import ConfigKey, RecordingSwitches, recording_enabled
+from api.v1.schemas.admin.config import (
+    RUNTIME_CONFIG_DEFAULTS,
+    RUNTIME_CONFIG_INTEGER_RANGES,
+    ConfigKey,
+    RecordingSwitches,
+    recording_enabled,
+)
 from api.v1.services.admin.config import validate_config_value
 
 INTEGER_CASES = [
@@ -42,10 +48,22 @@ def test_consent_versions_remain_strings(key: ConfigKey) -> None:
     """REC-8: consent version identifiers are stored without numeric coercion."""
     assert validate_config_value(key, "1") == "1"
     assert validate_config_value(key, "2026-10") == "2026-10"
+    assert validate_config_value(key, "v" * 64) == "v" * 64
     invalid: Any
-    for invalid in (1, True, None, {}, []):
+    for invalid in (1, True, None, {}, [], "", "v" * 65):
         with pytest.raises(ValueError):
             validate_config_value(key, invalid)
+
+
+def test_every_config_key_has_a_valid_default_and_ranges_only_reference_known_keys() -> None:
+    """FR-CALL-5, REC-8: key definitions remain complete and valid as the registry grows."""
+    keys = set(ConfigKey)
+    assert set(RUNTIME_CONFIG_DEFAULTS) == keys
+    assert set(RUNTIME_CONFIG_INTEGER_RANGES) <= keys
+    assert all(isinstance(key, ConfigKey) for key in RUNTIME_CONFIG_DEFAULTS)
+    assert all(isinstance(key, ConfigKey) for key in RUNTIME_CONFIG_INTEGER_RANGES)
+    for key in keys:
+        assert validate_config_value(key, RUNTIME_CONFIG_DEFAULTS[key]) == RUNTIME_CONFIG_DEFAULTS[key]
 
 
 @pytest.mark.parametrize(
@@ -87,6 +105,7 @@ def test_recording_country_overrides_inherit_only_omitted_fields() -> None:
         }
     )
     assert recording_enabled(value, country="NG", kind="call") is False
+    assert recording_enabled(value, country="ng", kind="call") is False
     assert recording_enabled(value, country="NG", kind="circle") is False
     assert recording_enabled(value, country="FR", kind="circle") is True
     assert recording_enabled(value, country="FR", kind="call") is False

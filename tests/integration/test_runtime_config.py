@@ -15,9 +15,9 @@ from sqlalchemy import delete, func, select
 from api.core.actor import SYSTEM, Actor
 from api.core.redis_client import redis_client
 from api.db.database import AsyncSessionLocal, engine
-from api.utils.settings import CONFIG_CACHE_TTL_SECONDS
 from api.v1.models.admin.config import ConfigEntry
 from api.v1.schemas.admin.config import ConfigKey
+from api.v1.services.admin import config as config_service
 from api.v1.services.admin.config import get_config, set_config
 from tests.test_runtime_config import INTEGER_CASES
 
@@ -64,7 +64,7 @@ async def test_missing_numeric_keys_return_the_documented_defaults(
     cached = await redis_client.get(f"config:{key.value}")
     assert cached is not None
     assert json.loads(cached) == default
-    assert 0 < await redis_client.ttl(f"config:{key.value}") <= 30
+    assert 0 < await redis_client.pttl(f"config:{key.value}") <= 30000
     async with AsyncSessionLocal() as session:
         assert await session.scalar(select(func.count()).select_from(ConfigEntry)) == 0
 
@@ -107,15 +107,17 @@ async def test_set_config_upserts_one_row_and_records_the_actor_and_server_times
         assert await session.scalar(select(func.count()).select_from(ConfigEntry)) == 1
 
 
-async def test_updated_value_reaches_readers_when_the_real_thirty_second_cache_expires() -> None:
-    """FR-CALL-5: committed changes become visible within the real config cache TTL."""
+async def test_updated_value_reaches_readers_when_the_cache_expires(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-CALL-5: committed changes become visible after expiration in real Redis."""
+    test_ttl_seconds = 1
+    monkeypatch.setattr(config_service, "CONFIG_CACHE_TTL_SECONDS", test_ttl_seconds)
     key = ConfigKey.RING_TIMEOUT_SECONDS
     assert await get_config(key) == 20
-    assert 0 < await redis_client.ttl(f"config:{key.value}") <= 30
+    assert 0 < await redis_client.pttl(f"config:{key.value}") <= 1000
     async with AsyncSessionLocal.begin() as session:
         await set_config(session, key, 21, actor=SYSTEM)
 
-    await asyncio.sleep(CONFIG_CACHE_TTL_SECONDS)
+    await asyncio.sleep(test_ttl_seconds)
     assert await get_config(key) == 21
     cached = await redis_client.get(f"config:{key.value}")
     assert cached is not None

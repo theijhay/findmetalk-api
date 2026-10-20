@@ -1,17 +1,22 @@
 """FR-CALL-5, REC-8: persist runtime configuration.
 
-Revision ID: 0001_runtime_config
+Revision ID: 844544eff684
 Revises:
+Create Date: 2026-10-20 15:40:59.005914
+
 """
+from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "0001_runtime_config"
-down_revision = None
-branch_labels = None
-depends_on = None
+
+# revision identifiers, used by Alembic.
+revision: str = '844544eff684'
+down_revision: Union[str, None] = None
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:

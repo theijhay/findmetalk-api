@@ -14,24 +14,29 @@ from api.core.actor import Actor
 from api.core.redis_client import redis_client
 from api.db.database import AsyncSessionLocal
 from api.utils.logger import logger
-from api.utils.settings import (
+from api.v1.models.admin.config import ConfigEntry
+from api.v1.schemas.admin.config import (
     CONFIG_CACHE_TTL_SECONDS,
     RUNTIME_CONFIG_DEFAULTS,
     RUNTIME_CONFIG_INTEGER_RANGES,
+    ConfigKey,
+    RecordingSwitches,
 )
-from api.v1.models.admin.config import ConfigEntry
-from api.v1.schemas.admin.config import ConfigKey, RecordingSwitches
 
 
 def validate_config_value(key: ConfigKey, value: Any) -> JsonValue:
-    bounds = RUNTIME_CONFIG_INTEGER_RANGES.get(key.value)
+    bounds = RUNTIME_CONFIG_INTEGER_RANGES.get(key)
     if bounds is not None:
         if type(value) is not int or not bounds[0] <= value <= bounds[1]:
             raise ValueError("config.value_invalid")
         return value
     if key == ConfigKey.RECORDINGS_ENABLED:
         return RecordingSwitches.model_validate(value, strict=True).model_dump(mode="json")
-    if key in {ConfigKey.RULES_VERSION, ConfigKey.RECORDING_NOTICE_VERSION} and isinstance(value, str):
+    if (
+        key in {ConfigKey.RULES_VERSION, ConfigKey.RECORDING_NOTICE_VERSION}
+        and isinstance(value, str)
+        and 1 <= len(value) <= 64
+    ):
         return value
     raise ValueError("config.value_invalid")
 
@@ -55,9 +60,7 @@ async def get_config(key: ConfigKey) -> JsonValue:
         row = (
             await session.execute(select(ConfigEntry.value).where(ConfigEntry.key == key.value))
         ).one_or_none()
-    value = validate_config_value(
-        key, row[0] if row is not None else deepcopy(RUNTIME_CONFIG_DEFAULTS[key.value])
-    )
+    value = validate_config_value(key, row[0] if row is not None else deepcopy(RUNTIME_CONFIG_DEFAULTS[key]))
     try:
         await redis_client.set(cache_key, json.dumps(value), ex=CONFIG_CACHE_TTL_SECONDS)
     except RedisError:
