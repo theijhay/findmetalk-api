@@ -65,14 +65,17 @@ every pull request plain and professional:
 
 ## Before every push: `make ci`
 
-`make ci` runs every gate in `.github/workflows/ci.yml` on your machine:
-ruff, mypy (strict), the contract check, all tests including integration
-tests against real Postgres and Redis, the migration round trip, pip-audit,
-gitleaks over the full history, and the Docker image build. It starts the
-containers it needs and stops them again, pass or fail. **A pull request is
-only opened or pushed after `make ci` passes**, and the Testing section of
-the pull request says so. If anything fails, do not push: fix it, or report
-the failure to Isaac with the real output.
+`make ci` runs every gate in `.github/workflows/ci.yml` on your machine except
+the Docker image build: ruff, mypy (strict), the contract check, all tests
+including integration tests against real Postgres and Redis, the migration
+round trip, the dependency audit and gitleaks over the full history. It starts
+the containers it needs and stops them again, pass or fail. **A pull request
+that changes `Dockerfile`, `requirements.txt` or `.dockerignore` runs
+`make ci-image` instead**, which also builds the image and checks it runs as a
+non-root user. **A pull request is only opened or pushed after its gate
+passes**, and the Testing section of the pull request says which one ran. If
+anything fails, do not push: fix it, or report the failure to Isaac with the
+real output.
 
 While iterating, `make up` then `make check` is the quicker subset. `make
 down` when you are done: shut down every container you start.

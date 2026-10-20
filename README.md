@@ -21,14 +21,17 @@ make down                 # stop the containers when done
 
 ## Checks
 
-`make ci` runs every gate in the CI workflow locally: ruff, mypy, the contract
-check, unit and integration tests, the migration round trip, pip-audit,
-gitleaks and the Docker image build. It starts and stops the containers it
-needs. `make check` is the quicker subset while iterating (needs `make up`).
+`make ci` runs every gate in the CI workflow locally except the image build:
+ruff, mypy, the contract check, unit and integration tests, the migration
+round trip, pip-audit and gitleaks. It starts and stops the containers it
+needs. `make ci-image` adds the Docker image build, for changes to the
+Dockerfile or requirements. `make check` is the quicker subset while
+iterating (needs `make up`).
 
 | Command | What it does |
 |---------|--------------|
-| `make ci` | Everything CI runs |
+| `make ci` | Everything CI runs except the image build |
+| `make ci-image` | `make ci` plus the Docker image build |
 | `make test` | Unit tests only (no services needed) |
 | `make test-integration` | All tests, against local Postgres and Redis |
 | `make migrate-check` | upgrade, `alembic check`, downgrade, upgrade |

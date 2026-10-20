@@ -5,7 +5,7 @@ PY := .venv/bin/python
 TEST_DB_URL ?= postgresql://findmetalk:findmetalk@localhost:5434/findmetalk_test
 TEST_REDIS_URL ?= redis://localhost:6381/15
 
-.PHONY: install lint format typecheck test test-integration contract migrate-check check audit secrets image ci up down run
+.PHONY: install lint format typecheck test test-integration contract migrate-check check audit secrets image ci ci-image up down run
 
 install:
 	python3.12 -m venv .venv
@@ -43,9 +43,13 @@ migrate-check:
 
 check: lint typecheck contract test-integration migrate-check
 
-# Known-vulnerable dependencies (the CI `dependency audit` job).
+# Known-vulnerable dependencies (the CI `dependency audit` job). Audits the
+# installed environment rather than downloading every requirement again into
+# a throwaway one, so it works on a slow connection; check_pins.py first proves
+# the environment is exactly the pinned versions, which makes the two the same.
 audit:
-	$(PY) -m pip_audit -r requirements.txt -r requirements-dev.txt --progress-spinner off
+	$(PY) scripts/check_pins.py requirements.txt requirements-dev.txt
+	$(PY) -m pip_audit --path "$$($(PY) -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" --progress-spinner off --timeout 60
 
 # Secrets anywhere in git history (the CI `secret scan` job).
 secrets:
@@ -57,11 +61,15 @@ image:
 	docker run --rm -e DB_URL=postgresql://u:p@127.0.0.1:1/d -e REDIS_URL=redis://127.0.0.1:1/0 \
 		findmetalk-api:local sh -c 'test "$$(id -u)" != 0 && python -c "import main"'
 
-# Every gate .github/workflows/ci.yml runs, locally. Starts Postgres and
-# Redis, and always stops them again, pass or fail.
+# Every gate .github/workflows/ci.yml runs, locally, except the image build.
+# Starts Postgres and Redis, and always stops them again, pass or fail.
 ci:
 	$(MAKE) up
-	$(MAKE) check audit secrets image; status=$$?; $(MAKE) down; exit $$status
+	$(MAKE) check audit secrets; status=$$?; $(MAKE) down; exit $$status
+
+# Required as well when a change touches Dockerfile, requirements.txt or
+# .dockerignore: the image is the one thing `make ci` does not build.
+ci-image: ci image
 
 up:
 	docker compose up -d --wait postgres redis
