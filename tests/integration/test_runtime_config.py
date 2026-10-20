@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-import sys
 from collections.abc import AsyncIterator
 from datetime import datetime
 from unittest.mock import AsyncMock
@@ -24,25 +23,8 @@ from tests.test_runtime_config import INTEGER_CASES
 pytestmark = pytest.mark.integration
 
 
-@pytest.fixture(scope="module")
-async def migrated_config_table() -> None:
-    # A fresh local test database must exercise the real revision, rather
-    # than create_all concealing differences between migrations and models.
-    process = await asyncio.create_subprocess_exec(
-        sys.executable,
-        "-m",
-        "alembic",
-        "upgrade",
-        "head",
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, stderr = await process.communicate()
-    assert process.returncode == 0, (stdout + stderr).decode()
-
-
 @pytest.fixture(autouse=True)
-async def clean_config(migrated_config_table: None) -> AsyncIterator[None]:
+async def clean_config(migrated_database: None) -> AsyncIterator[None]:
     async def clean() -> None:
         async with engine.begin() as connection:
             await connection.execute(delete(ConfigEntry))

@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import JsonValue
 from redis.exceptions import RedisError
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +22,7 @@ from api.v1.schemas.admin.config import (
     ConfigKey,
     RecordingSwitches,
 )
+from api.v1.services.admin import audit
 
 
 def validate_config_value(key: ConfigKey, value: Any) -> JsonValue:
@@ -71,12 +72,29 @@ async def get_config(key: ConfigKey) -> JsonValue:
 async def set_config(session: AsyncSession, key: ConfigKey, value: Any, *, actor: Actor) -> None:
     key = ConfigKey(key)
     validated = validate_config_value(key, value)
+    # A row lock cannot serialize two first writes to a key that is absent.
+    # Hold this key's transaction lock through both its change and evidence.
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext('config:' || :key))"), {"key": key.value}
+    )
+    previous = (
+        await session.execute(select(ConfigEntry.value).where(ConfigEntry.key == key.value))
+    ).one_or_none()
+    old_value = previous[0] if previous is not None else RUNTIME_CONFIG_DEFAULTS[key]
     statement = insert(ConfigEntry).values(key=key.value, value=validated, updated_by=actor.id)
     await session.execute(
         statement.on_conflict_do_update(
             index_elements=[ConfigEntry.key],
             set_={"value": validated, "updated_by": actor.id, "updated_at": func.now()},
         )
+    )
+    await audit.record(
+        session,
+        actor=actor,
+        action="config.updated",
+        target_type="config",
+        target_id=None,
+        metadata={"key": key.value, "old": old_value, "new": validated},
     )
     # The caller owns the commit. Do not publish uncommitted configuration
     # into Redis; readers refresh committed values when their short TTL ends.
