@@ -1,6 +1,6 @@
 # Runtime dependencies: what the image installs. Pinned exactly; Dependabot
 # proposes upgrades weekly.
-fastapi==0.147.0
+fastapi==0.161.1
 starlette==1.9.0
 # [standard] brings uvloop, httptools and websockets: the realtime gateway
 # (presence, call events) runs over WebSockets in this same process.
