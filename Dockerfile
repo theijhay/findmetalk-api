@@ -1,5 +1,5 @@
 # Keep Python on 3.12 and use Bookworm's supported package repositories.
-FROM python:3.12-slim-bookworm
+FROM python:3.15-slim-bookworm
 
 # No .pyc files, and output is logged instantly (not buffered).
 ENV PYTHONDONTWRITEBYTECODE=1 \
