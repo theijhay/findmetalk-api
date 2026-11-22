@@ -28,6 +28,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         # Fail fast on a misconfigured deployment rather than serve requests
         # that can only fail. Outages after startup are reported by /ready.
+        settings.require_auth_keys()
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         logger.info("PostgreSQL connection OK")
@@ -80,5 +81,6 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=settings.APP_PORT,
         reload=settings.DEBUG,
+        proxy_headers=False,
         log_config=None,  # keep configure_logging's JSON handler
     )

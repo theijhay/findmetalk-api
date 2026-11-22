@@ -28,5 +28,6 @@ EXPOSE 8000
 STOPSIGNAL SIGTERM
 
 # Migrations are applied as a separate step before a deploy (README), never by
-# container start. `--proxy-headers` because the platform terminates TLS.
-CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${APP_PORT:-8000} --proxy-headers --no-access-log"]
+# container start. Client IP forwarding uses the authenticated server-proxy
+# headers, so Uvicorn must preserve the socket peer instead of trusting XFF.
+CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${APP_PORT:-8000} --no-proxy-headers --no-access-log"]
