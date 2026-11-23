@@ -6,7 +6,7 @@ starlette==1.9.0
 # (presence, call events) runs over WebSockets in this same process.
 uvicorn[standard]==0.54.0
 pydantic==2.14.1
-pydantic-settings==2.16.1
+pydantic-settings==2.16.3
 python-dotenv==1.2.4
 SQLAlchemy[asyncio]==2.1.6
 asyncpg==0.32.0
