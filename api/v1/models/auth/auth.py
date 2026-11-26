@@ -51,3 +51,12 @@ class AuthSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     absolute_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SpentRefreshToken(Base):
+    __tablename__ = "spent_refresh_tokens"
+
+    token_hash: Mapped[bytes] = mapped_column(LargeBinary, primary_key=True)
+    session_id: Mapped[UUID] = mapped_column(
+        ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True
+    )

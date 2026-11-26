@@ -31,6 +31,10 @@ class CodeResponse(BaseModel):
     resend_after_seconds: int
 
 
+class RefreshRequest(BaseModel):
+    refresh_token: StrictStr
+
+
 class UserMe(BaseModel):
     id: UUID
     email: str
